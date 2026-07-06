@@ -303,7 +303,7 @@
                 
                 <div class="control-group">
                     <label for="quantity">Quantity:</label>
-                    <input type="number" id="quantity" value="100" min="1" max="1000">
+                    <input type="number" id="quantity" value="100" min="1" max="5000">
                 </div>
             </div>
             
@@ -384,7 +384,13 @@
                 showAlert('Please enter a model name', 'error');
                 return;
             }
-            
+
+            const qty = parseInt(quantity);
+            if (isNaN(qty) || qty < 1 || qty > 5000) {
+                showAlert('Quantity must be between 1 and 5,000', 'error');
+                return;
+            }
+
             const btn = event.target;
             btn.disabled = true;
             btn.textContent = '⏳ Generating...';
@@ -394,14 +400,35 @@
             document.getElementById('progressText').textContent = 'Calling API...';
             
             try {
-                const response = await fetch(`/api/generate?model=${encodeURIComponent(model)}&year=${year}&month=${month}&quantity=${quantity}`);
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Generation failed');
+                // fetch in batches of 500 — a single Vercel response is capped at ~4.5MB
+                const BATCH = 500;
+                const allSerials = [], allUrls = [], allQrcodes = {};
+                for (let batchStart = 1; batchStart <= qty; batchStart += BATCH) {
+                    const batchQty = Math.min(BATCH, qty - batchStart + 1);
+                    document.getElementById('progressText').textContent = `Generating ${batchStart - 1}/${qty}...`;
+                    const response = await fetch(`/api/generate?model=${encodeURIComponent(model)}&year=${year}&month=${month}&quantity=${batchQty}&start=${batchStart}`);
+
+                    if (!response.ok) {
+                        let msg = `API error (HTTP ${response.status})`;
+                        try { msg = (await response.json()).error || msg; } catch (_) {}
+                        throw new Error(msg);
+                    }
+
+                    const part = await response.json();
+                    allSerials.push(...part.serials);
+                    allUrls.push(...part.urls);
+                    Object.assign(allQrcodes, part.qrcodes);
                 }
-                
-                const data = await response.json();
+
+                const data = {
+                    success: true,
+                    model: model.toUpperCase(),
+                    quantity: qty,
+                    serial_range: `${allSerials[0]} → ${allSerials[allSerials.length - 1]}`,
+                    serials: allSerials,
+                    urls: allUrls,
+                    qrcodes: allQrcodes
+                };
                 generatedData = data;
                 
                 // Update summary
@@ -498,7 +525,9 @@
                 const original = btnZip.textContent;
                 btnZip.textContent = '⏳ Building ZIP...';
                 try {
-                    const blob = await buildQrZip(data.qrcodes);
+                    const blob = await buildQrZip(data.qrcodes, (done, total) => {
+                        btnZip.textContent = `⏳ Building ZIP... ${done}/${total}`;
+                    });
                     const a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
                     a.download = `4_QR_Stickers_${data.model}.zip`;
@@ -593,13 +622,15 @@
             return c;
         }
 
-        async function buildQrZip(qrcodes) {
+        async function buildQrZip(qrcodes, onProgress) {
             const zip = new JSZip();
-            for (const serial in qrcodes) {
-                const qrImg = await loadImage(qrcodes[serial]);
-                const canvas = drawSticker(serial, qrImg);
+            const serials = Object.keys(qrcodes);
+            for (let i = 0; i < serials.length; i++) {
+                const qrImg = await loadImage(qrcodes[serials[i]]);
+                const canvas = drawSticker(serials[i], qrImg);
                 const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                zip.file(`${serial}.png`, blob);
+                zip.file(`${serials[i]}.png`, blob);
+                if (onProgress && (i + 1) % 50 === 0) onProgress(i + 1, serials.length);
             }
             return zip.generateAsync({ type: 'blob' });
         }

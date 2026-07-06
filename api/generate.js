@@ -3,11 +3,11 @@
 
 const QRCode = require('qrcode');
 
-function generateSerials(model, year, month, quantity) {
+function generateSerials(model, year, month, quantity, start = 1) {
   const serials = [];
   const monthStr = String(month).padStart(2, '0');
-  
-  for (let i = 1; i <= quantity; i++) {
+
+  for (let i = start; i < start + quantity; i++) {
     const serial = `${model}${year}${monthStr}${String(i).padStart(4, '0')}`;
     serials.push(serial);
   }
@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
   }
   
   const params = req.method === 'GET' ? req.query : req.body;
-  const { model, year, month, quantity } = params;
+  const { model, year, month, quantity, start } = params;
   
   // Validate inputs
   if (!model || !year || !month || !quantity) {
@@ -78,9 +78,14 @@ module.exports = async (req, res) => {
     const qty = parseInt(quantity);
     const yr = parseInt(year);
     const mo = parseInt(month);
-    
+    const st = start ? parseInt(start) : 1;
+
     if (qty < 1 || qty > 1000) {
-      throw new Error('Quantity must be between 1-1000');
+      throw new Error('Quantity must be between 1-1000 per request (use start to batch)');
+    }
+
+    if (isNaN(st) || st < 1 || st + qty - 1 > 100000) {
+      throw new Error('start must be >= 1 and start+quantity-1 <= 100000');
     }
     
     if (yr < 2020 || yr > 2099) {
@@ -92,7 +97,7 @@ module.exports = async (req, res) => {
     }
     
     // Generate data
-    const serials = generateSerials(model.toUpperCase(), yr, mo, qty);
+    const serials = generateSerials(model.toUpperCase(), yr, mo, qty, st);
     const urlPairs = generateURLs(model.toUpperCase(), serials);
     const qrCodes = await generateQRCodes(urlPairs);
     
