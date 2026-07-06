@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal QR Code Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group label {
+            font-weight: 600;
+            color: #2d3436;
+            margin-bottom: 8px;
+        }
+        
+        .control-group input {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+        
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .summary-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .summary-box.active {
+            display: block;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert.active {
+            display: block;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            color: #2e7d32;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            color: #c62828;
+        }
+        
+        .alert-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            color: #1565c0;
+        }
+        
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .qr-preview {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .qr-preview img {
+            width: 100%;
+            height: auto;
+            margin-bottom: 5px;
+        }
+        
+        .qr-serial {
+            font-size: 0.7em;
+            color: #666;
+            word-break: break-all;
+            font-family: monospace;
+        }
+        
+        .download-section {
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .download-section.active {
+            display: block;
+        }
+        
+        .download-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .download-button {
+            display: inline-block;
+            background: #4caf50;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .download-button:hover {
+            background: #45a049;
+        }
+        
+        .progress {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .progress.active {
+            display: block;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-box {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+        
+        .stat-label {
+            font-size: 0.85em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔗 Universal QR Code Generator</h1>
+            <p>Generate Serial Lists, URLs, and QR Code Images</p>
+        </div>
+        
+        <div class="content">
+            <h2 style="margin-bottom: 20px; color: #2d3436;">📋 Configure</h2>
+            
+            <div class="form-grid">
+                <div class="control-group">
+                    <label for="model">Model Name:</label>
+                    <input type="text" id="model" placeholder="e.g., RCBS90, WBS6540" value="RCBS90">
+                </div>
+                
+                <div class="control-group">
+                    <label for="year">Year:</label>
+                    <input type="number" id="year" value="2026" min="2020" max="2099">
+                </div>
+                
+                <div class="control-group">
+                    <label for="month">Month:</label>
+                    <input type="number" id="month" value="06" min="1" max="12">
+                </div>
+                
+                <div class="control-group">
+                    <label for="quantity">Quantity:</label>
+                    <input type="number" id="quantity" value="100" min="1" max="1000">
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-primary" onclick="generateData()">✓ Generate QR Codes</button>
+            </div>
+            
+            <div id="alert" class="alert"></div>
+            
+            <div id="summary" class="summary-box">
+                <strong>📊 Summary:</strong><br>
+                Model: <strong id="summaryModel">RCBS90</strong><br>
+                Range: <strong id="summaryRange">—</strong><br>
+                Quantity: <strong id="summaryQty">0</strong> codes
+            </div>
+            
+            <div id="progress" class="progress">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+                <p id="progressText" style="text-align: center; margin-top: 10px; color: #666;"></p>
+            </div>
+            
+            <div id="stats" class="stats" style="display: none;"></div>
+            
+            <div id="previewSection" style="display: none;">
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">Preview (First 12 QR Codes):</h3>
+                <div id="previewGrid" class="preview-grid"></div>
+            </div>
+            
+            <div id="downloadSection" class="download-section">
+                <h3>📥 Download Your Files</h3>
+                <p style="margin-bottom: 15px; color: #666;">
+                    All data has been generated. Download your files:
+                </p>
+                
+                <div id="downloadLinks"></div>
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+                    <strong>📋 What You Get:</strong><br>
+                    ✓ Serial numbers CSV<br>
+                    ✓ Serial numbers + URLs CSV<br>
+                    ✓ QR code PNG images (base64 data)
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <strong>Latin Trading | Audio Division</strong><br>
+            Universal QR Code Generator
+        </div>
+    </div>
+    
+    <script>
+        let generatedData = null;
+        
+        function showAlert(message, type = 'info') {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert active alert-${type}`;
+        }
+        
+        function hideAlert() {
+            document.getElementById('alert').classList.remove('active');
+        }
+        
+        async function generateData() {
+            hideAlert();
+            
+            const model = document.getElementById('model').value.trim();
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const quantity = document.getElementById('quantity').value;
+            
+            if (!model) {
+                showAlert('Please enter a model name', 'error');
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ Generating...';
+            
+            const progress = document.getElementById('progress');
+            progress.classList.add('active');
+            document.getElementById('progressText').textContent = 'Calling API...';
+            
+            try {
+                const response = await fetch(`/api/generate?model=${encodeURIComponent(model)}&year=${year}&month=${month}&quantity=${quantity}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Generation failed');
+                }
+                
+                const data = await response.json();
+                generatedData = data;
+                
+                // Update summary
+                document.getElementById('summaryModel').textContent = data.model;
+                document.getElementById('summaryRange').textContent = data.serial_range;
+                document.getElementById('summaryQty').textContent = data.quantity;
+                document.getElementById('summary').classList.add('active');
+                
+                // Show preview
+                const previewGrid = document.getElementById('previewGrid');
+                previewGrid.innerHTML = '';
+                const qrcodes = data.qrcodes;
+                let count = 0;
+                
+                for (const serial in qrcodes) {
+                    if (count >= 12) break;
+                    const preview = document.createElement('div');
+                    preview.className = 'qr-preview';
+                    preview.innerHTML = `<img src="${qrcodes[serial]}" alt="${serial}"><div class="qr-serial">${serial}</div>`;
+                    previewGrid.appendChild(preview);
+                    count++;
+                }
+                
+                document.getElementById('previewSection').style.display = 'block';
+                
+                // Show download section
+                showDownloadSection(data);
+                
+                progress.classList.remove('active');
+                showAlert(`✓ Generated ${data.quantity} QR codes successfully!`, 'success');
+                
+            } catch (error) {
+                showAlert('Error: ' + error.message, 'error');
+                progress.classList.remove('active');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '✓ Generate QR Codes';
+            }
+        }
+        
+        function showDownloadSection(data) {
+            const section = document.getElementById('downloadSection');
+            const links = document.getElementById('downloadLinks');
+            links.innerHTML = '';
+            
+            // CSV 1: Serials only
+            const csv1 = 'Serial_Number\n' + data.serials.join('\n');
+            const blob1 = new Blob([csv1], { type: 'text/csv' });
+            const url1 = URL.createObjectURL(blob1);
+            const btn1 = document.createElement('a');
+            btn1.href = url1;
+            btn1.download = `1_Serial_Numbers.csv`;
+            btn1.textContent = '📥 1_Serial_Numbers.csv';
+            btn1.className = 'download-button';
+            links.appendChild(btn1);
+            links.appendChild(document.createElement('br'));
+            
+            // CSV 2: Serials + URLs
+            const csv2Rows = ['Serial_Number,URL'];
+            data.urls.forEach(item => {
+                csv2Rows.push(`"${item.serial}","${item.url}"`);
+            });
+            const csv2 = csv2Rows.join('\n');
+            const blob2 = new Blob([csv2], { type: 'text/csv' });
+            const url2 = URL.createObjectURL(blob2);
+            const btn2 = document.createElement('a');
+            btn2.href = url2;
+            btn2.download = `2_Serial_Numbers_with_URLs.csv`;
+            btn2.textContent = '📥 2_Serial_Numbers_with_URLs.csv';
+            btn2.className = 'download-button';
+            links.appendChild(btn2);
+            links.appendChild(document.createElement('br'));
+            
+            // QR Codes JSON (downloadable)
+            const qrJson = JSON.stringify(data.qrcodes, null, 2);
+            const blobQR = new Blob([qrJson], { type: 'application/json' });
+            const urlQR = URL.createObjectURL(blobQR);
+            const btnQR = document.createElement('a');
+            btnQR.href = urlQR;
+            btnQR.download = `3_QR_Codes_Data.json`;
+            btnQR.textContent = '📥 3_QR_Codes_Data.json (base64)';
+            btnQR.className = 'download-button';
+            links.appendChild(btnQR);
+            
+            section.classList.add('active');
+        }
+    </script>
+</body>
+</html>

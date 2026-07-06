@@ -1,0 +1,17 @@
+{
+  "name": "qr-code-generator",
+  "version": "1.0.0",
+  "description": "Universal QR Code and Serial Number Generator",
+  "main": "api/generate.js",
+  "scripts": {
+    "build": "echo 'Build complete'",
+    "dev": "vercel dev",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "qrcode": "^1.5.3"
+  },
+  "engines": {
+    "node": "22.x"
+  }
+}
