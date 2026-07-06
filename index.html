@@ -346,7 +346,8 @@
                     <strong>📋 What You Get:</strong><br>
                     ✓ Serial numbers CSV<br>
                     ✓ Serial numbers + URLs CSV<br>
-                    ✓ QR code PNG images (base64 data)
+                    ✓ QR code PNG images (base64 data)<br>
+                    ✓ ZIP of QR code PNG images
                 </div>
             </div>
         </div>
@@ -357,6 +358,7 @@
         </div>
     </div>
     
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script>
         let generatedData = null;
         
@@ -483,8 +485,43 @@
             btnQR.textContent = '📥 3_QR_Codes_Data.json (base64)';
             btnQR.className = 'download-button';
             links.appendChild(btnQR);
-            
+            links.appendChild(document.createElement('br'));
+
+            // ZIP of QR PNGs (built on click)
+            const btnZip = document.createElement('a');
+            btnZip.href = '#';
+            btnZip.id = 'downloadZip';
+            btnZip.textContent = '📥 4_QR_Codes_PNGs.zip';
+            btnZip.className = 'download-button';
+            btnZip.onclick = async (e) => {
+                e.preventDefault();
+                const original = btnZip.textContent;
+                btnZip.textContent = '⏳ Building ZIP...';
+                try {
+                    const blob = await buildQrZip(data.qrcodes);
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `4_QR_Codes_${data.model}_PNGs.zip`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                } catch (err) {
+                    showAlert('Error building ZIP: ' + err.message, 'error');
+                } finally {
+                    btnZip.textContent = original;
+                }
+            };
+            links.appendChild(btnZip);
+
             section.classList.add('active');
+        }
+
+        async function buildQrZip(qrcodes) {
+            const zip = new JSZip();
+            for (const serial in qrcodes) {
+                const base64 = qrcodes[serial].split(',')[1];
+                zip.file(`${serial}.png`, base64, { base64: true });
+            }
+            return zip.generateAsync({ type: 'blob' });
         }
     </script>
 </body>
